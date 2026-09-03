@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>not an old pulse</title>
+<style>
+  :root{
+    --gui-scale: 1;
+    --window-bg: #1c1c1c;
+    --module-bg: #2a2a2a;
+    --module-bg-hover: #323232;
+    --accent: #4a90e2;
+    --accent-hover: #5c9de8;
+    --sidebar-bg: #202020;
+    --tab-track-bg: #242424;
+    --tab-active-bg: #3a3a3a;
+    --text-primary: #ffffff;
+    --text-secondary: #8a8a8a;
+    --text-dim: #6f6f6f;
+    --close-btn: #e0473f;
+    --close-btn-hover: #eb645c;
+    --popup-bg: #232323;
+    --online: #55c47a;
+    --offline: #6a6a6a;
+  }
+
+  @keyframes guiFadeIn{
+    0%{ opacity:0; }
+    100%{ opacity:1; }
+  }
+
+  html, body{
+    margin:0; width:100vw; height:100vh; overflow:hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body{
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(0, 0, 0, 0.45);
+    user-select:none;
+  }
+
+  .app-shell{
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    animation: guiFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform: scale(var(--gui-scale, 1.25));
+    transform-origin: center center;
+    will-change: transform, opacity;
+  }
+
+  /* ---------- sidebar ---------- */
+  .sidebar{
+    width:56px; padding:14px 0;
+    background: var(--sidebar-bg);
+    border-radius:20px;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08);
+  }
+  .sidebar-icon{
+    width:42px; height:42px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    color: var(--text-secondary);
+    cursor:pointer;
+    transition: background-color .18s ease, color .18s ease, transform .15s ease;
+  }
+  .sidebar-icon svg{ width:20px; height:20px; }
+  .sidebar-icon:hover{ background: var(--module-bg); color:#fff; }
+  .sidebar-icon.active{ background: var(--accent); color:#fff; }
+  .sidebar-icon.active:hover{ background: var(--accent-hover); }
+  .sidebar-icon:active{ transform: scale(.92); }
+
+  /* ---------- main window ---------- */
+  .main-window{
+    width:540px;
+    background: var(--window-bg);
+    border-radius:20px;
+    padding:18px 18px 16px;
+    position:relative;
+    box-shadow: 0 24px 60px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.09);
+  }
+
+  .header-row{
+    display:flex; align-items:center; justify-content:space-between;
+    height:20px; margin-bottom:14px; position:relative;
+  }
+  .close-dot{
+    width:14px; height:14px; border-radius:50%;
+    background: var(--close-btn);
+    cursor:pointer;
+    position:relative;
+    transition: background-color .15s ease, transform .15s ease;
+  }
+  .close-dot::before{
+    content:""; position:absolute; top:-8px; left:-8px; right:-8px; bottom:-8px;
+  }
+  .close-dot:hover{ background: var(--close-btn-hover); transform: scale(1.15); }
+  .header-title{
+    position:absolute; left:50%; top:50%;
+    transform: translate(-50%,-50%);
+    font-size:13.5px; font-weight:600; color:#fff; letter-spacing:.3px;
+  }
+  .theme-toggle{
+    width:16px; height:16px; border-radius:50%;
+    background: #d0d0d0; position:relative; overflow:hidden;
+    cursor:pointer;
+    transition: background-color .15s ease;
+  }
+  .theme-toggle:hover{ background:#fff; }
+  .theme-toggle::after{
+    content:""; position:absolute; width:12px; height:12px; border-radius:50%;
+    background: var(--window-bg); top:-3px; left:5px;
+  }
+
+  /* ---------- tabs ---------- */
+  .tabs-track{
+    position:relative;
+    display:flex;
+    background: var(--tab-track-bg);
+    border-radius:12px;
+    padding:4px;
+    margin-bottom:14px;
+    height:34px; box-sizing:border-box;
+  }
+  .tab-highlight{
+    position:absolute; top:4px; left:4px;
+    width: calc((100% - 8px) / 3);
+    height: calc(100% - 8px);
+    background: var(--tab-active-bg);
+    border-radius:10px;
+    transition: transform .32s cubic-bezier(.22,.9,.32,1);
+  }
+  .tab-btn{
+    position:relative; z-index:1; flex:1;
+    text-align:center; padding:7px 0;
+    font-size:12.5px; color: var(--text-secondary);
+    cursor:pointer;
+    transition: color .2s ease;
+  }
+  .tab-btn.active{ color:#fff; }
+  .tab-btn:hover:not(.active){ color:#c9c9c9; }
+
+  /* ---------- panel viewport ---------- */
+  .panel-viewport{
+    position:relative;
+    width:100%;
+    height:330px;
+  }
+  .panel{
+    position:absolute; inset:0;
+    opacity:0;
+    transform: translateY(6px);
+    pointer-events:none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .panel.active{
+    opacity:1;
+    transform: translateY(0);
+    pointer-events:auto;
+  }
+
+  /* ---------- generic panel toolbar (waypoints / friends) ---------- */
+  .panel-toolbar{
+    display:flex; gap:10px; height:34px; margin-bottom:14px; box-sizing:border-box;
+  }
+  .panel-input{
+    flex:1; background: var(--module-bg); border:none; outline:none;
+    border-radius:10px; padding:0 12px; height:34px; box-sizing:border-box;
+    color:#fff; font-size:12.5px;
+  }
+  .panel-input::placeholder{ color: var(--text-dim); }
+  .panel-add-btn{
+    background: var(--accent); color:#fff; border:none; border-radius:10px;
+    padding:0 16px; height:34px; font-size:12.5px; cursor:pointer;
+    transition: background-color .15s ease;
+  }
+  .panel-add-btn:hover{ background: var(--accent-hover); }
+  .panel-empty{
+    text-align:center; color: var(--text-dim); font-size:12.5px;
+  }
+  .module-grid.is-empty{
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ---------- module grid ---------- */
+  .module-grid{
+    display:grid; grid-template-columns:1fr 1fr;
+    gap:9px 12px;
+    align-content:start;
+    height:280px; overflow-y:auto;
+    padding-right:4px;
+    transition: opacity .15s ease, transform .15s ease;
+  }
+  .module-grid::-webkit-scrollbar{ width:5px; }
+  .module-grid::-webkit-scrollbar-thumb{ background:#444; border-radius:3px; }
+  .module-grid::-webkit-scrollbar-track{ background: transparent; }
+
+  .row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    box-shadow: 0 0 0 1.5px transparent inset;
+    transition: background-color .18s ease, box-shadow .18s ease;
+  }
+  .row:hover{
+    background: var(--module-bg-hover);
+    box-shadow: 0 0 0 1.5px var(--accent) inset;
+  }
+  .row-label{ font-size:12.5px; font-weight:500; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row-right{ display:flex; align-items:center; gap:9px; }
+  .row-sub{ font-size:11px; color: var(--text-dim); }
+
+  /* ---------- toggle switch ---------- */
+  .toggle{
+    width:30px; height:17px; border-radius:9px;
+    background: var(--module-bg);
+    position:relative; flex-shrink:0;
+    transition: background-color .25s ease;
+  }
+  .toggle.on{ background: var(--accent); }
+  .toggle-thumb{
+    width:13px; height:13px; border-radius:50%;
+    background:#f2f2f2; position:absolute; top:2px; left:2px;
+    transition: transform .25s cubic-bezier(.34,1.4,.64,1);
+  }
+  .toggle.on .toggle-thumb{ transform: translateX(13px); }
+
+  /* ---------- small icon buttons inside rows ---------- */
+  .icon-btn{
+    width:18px; height:18px; border-radius:5px;
+    display:flex; align-items:center; justify-content:center;
+    color: var(--text-dim);
+    transition: color .15s ease, background-color .15s ease;
+  }
+  .icon-btn:hover{ color:#fff; background: rgba(255,255,255,.06); }
+  .icon-btn svg{ width:11px; height:11px; }
+
+  .color-dot{
+    width:13px; height:13px; border-radius:50%;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.15) inset;
+  }
+  .status-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .status-dot.online{ background: var(--online); }
+  .status-dot.offline{ background: var(--offline); }
+
+  /* ---------- tooltip ---------- */
+  .tooltip{
+    position:absolute; left:50%; top:-8px; transform: translate(-50%,-100%);
+    background: var(--module-bg); color:#fff; font-size:10.5px;
+    padding:6px 10px; border-radius:6px; white-space:nowrap;
+    opacity:0; pointer-events:none;
+    transition: opacity .2s ease;
+  }
+  .tooltip.show{ opacity:1; }
+
+  /* ---------- right-click module settings popup ---------- */
+  .popup-overlay{
+    position:fixed; inset:0; z-index:50; display:none;
+  }
+  .popup-overlay.show{ display:block; }
+  .module-popup{
+    position:absolute;
+    background: var(--popup-bg);
+    border-radius:12px;
+    padding:12px;
+    min-width:190px;
+    box-shadow: 0 14px 30px rgba(0,0,0,.55);
+  }
+  .popup-header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .popup-title{ font-size:11.5px; font-weight:600; color:#fff; }
+  .popup-row{ margin-bottom:10px; }
+  .popup-row:last-child{ margin-bottom:0; }
+  .popup-row-label{
+    font-size:10.5px; color: var(--text-secondary);
+    display:flex; justify-content:space-between; margin-bottom:5px;
+  }
+  .popup-slider{
+    -webkit-appearance:none; width:100%; height:4px; border-radius:2px;
+    background: var(--module-bg); outline:none; cursor:pointer;
+  }
+  .popup-slider::-webkit-slider-thumb{
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+    background: var(--accent); cursor:pointer;
+  }
+  .popup-swatches{ display:flex; gap:6px; }
+  .popup-swatch{
+    width:16px; height:16px; border-radius:50%; cursor:pointer;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.12) inset;
+    transition: transform .12s ease;
+  }
+  .popup-swatch.selected{ box-shadow: 0 0 0 2px #fff inset; }
+  .popup-swatch:hover{ transform: scale(1.12); }
+  .popup-empty{ font-size:10.5px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+  <div class="app-shell">
+    <!-- Sidebar: only 3 destinations — Events was cut per spec -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-icon active" data-panel="settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94a7.14 7.14 0 0 0 .06-.94 7.14 7.14 0 0 0-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L1.65 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.14 7.14 0 0 0 0 1.88L1.77 14.5a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.56ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg>
+      </div>
+      <div class="sidebar-icon" data-panel="waypoints" title="Waypoints">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C7.6 2 4 5.6 4 10c0 5.6 7 11.5 7.3 11.7a1 1 0 0 0 1.4 0C13 21.5 20 15.6 20 10c0-4.4-3.6-8-8-8Zm0 10.8A3 3 0 1 1 12 6.8a3 3 0 0 1 0 6Z"/></svg>
+      </div>
+      <div class="sidebar-icon" data-panel="friends" title="Friends">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7-1a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-7 3c-3.3 0-6 1.6-6 3.5V20h12v-2.5c0-1.9-2.7-3.5-6-3.5Zm7 0c-.4 0-.8 0-1.2.06 1.1.8 1.9 2 1.9 3.44V20h5v-2c0-1.9-2.6-3.4-5.7-3.9Z"/></svg>
+      </div>
+    </div>
+
+    <!-- Main window -->
+    <div class="main-window" id="mainWindow">
+      <div class="header-row">
+        <div class="close-dot" id="closeBtn" title="Close"></div>
+        <div class="header-title">not an old pulse</div>
+        <div class="theme-toggle" id="themeBtn" title="Toggle theme"></div>
+      </div>
+
+      <div class="panel-viewport">
+        <!-- ===== Settings panel ===== -->
+        <div class="panel active" id="panel-settings">
+          <div class="tabs-track">
+            <div class="tab-highlight" id="tabHighlight"></div>
+            <div class="tab-btn active" data-tab="visuals">Visuals</div>
+            <div class="tab-btn" data-tab="hud">HUD</div>
+            <div class="tab-btn" data-tab="utilities">Utilities</div>
+          </div>
+          <div class="module-grid" id="moduleGrid"></div>
+        </div>
+
+        <!-- ===== Waypoints panel ===== -->
+        <div class="panel" id="panel-waypoints">
+          <div class="panel-toolbar">
+            <button class="panel-add-btn" id="addWaypointBtn" style="flex:1">+ Add waypoint at current position</button>
+          </div>
+          <div class="module-grid" id="waypointList" style="grid-template-columns:1fr"></div>
+        </div>
+
+        <!-- ===== Friends panel ===== -->
+        <div class="panel" id="panel-friends">
+          <div class="panel-toolbar">
+            <input class="panel-input" id="friendInput" placeholder="Nickname..." maxlength="16">
+            <button class="panel-add-btn" id="addFriendBtn">Add</button>
+          </div>
+          <div class="module-grid" id="friendList" style="grid-template-columns:1fr"></div>
+        </div>
+      </div>
+
+      <div class="tooltip" id="tooltip"></div>
+    </div>
+  </div>
+
+  <!-- right-click module settings popup -->
+  <div class="popup-overlay" id="popupOverlay">
+    <div class="module-popup" id="modulePopup"></div>
+  </div>
+
+<script>
+/* ===================================================================
+   This is a front-end-only prototype: everything lives in memory (no
+   localStorage / no backend), so state resets on reload. In the mod
+   this page would run inside the MCEF browser and talk to the client
+   through a JS<->Java bridge, e.g. `window.mcBridge.setToggle(key,val)`,
+   `window.mcBridge.getPlayerPosition()`, `window.mcBridge.getOnlinePlayers()`.
+   Every spot that would call into that bridge is marked with a TODO.
+=================================================================== */
+
+const PALETTE = ["#4a90e2", "#e0473f", "#55c47a", "#e2b23f", "#b25ae2", "#e2708a"];
+
+// ---------------------- Java bridge shim ----------------------
+// Wraps window.cefQuery (provided by MCEF/JCEF once the browser is hosted
+// inside the mod) behind a small helper. Falls back to console logging so
+function callBridge(action, payload, callback) {
+  const request = JSON.stringify({ action, payload: payload || {} });
+  if (window.cefQuery) {
+    window.cefQuery({
+      request,
+      onSuccess: (response) => {
+        if (callback) callback(response);
+      },
+      onFailure: (code, msg) => console.error("mcBridge error:", code, msg),
+    });
+  } else {
+    // Fallback: send command via mc:// protocol
+    let queryParams = "";
+    if (payload && typeof payload === "object") {
+      const entries = Object.entries(payload).map(([k, v]) => encodeURIComponent(k) + "=" + encodeURIComponent(v));
+      if (entries.length > 0) queryParams = "?" + entries.join("&");
+    }
+    const url = "mc://" + encodeURIComponent(action) + queryParams;
+    const img = new Image();
+    img.src = url;
+    console.log("[mcBridge fallback dispatched]", url);
+    if (callback) callback(null);
+  }
+}
+const mcBridge = {
+  closeGui: () => callBridge("close"),
+  getConfig: (cb) => callBridge("getConfig", {}, cb),
+  setToggle: (key, value) => callBridge("setToggle", { key, value }),
+  setModuleValue: (key, setting, value) => callBridge("setModuleValue", { key, setting, value }),
+  setModuleColor: (key, color) => callBridge("setModuleColor", { key, color }),
+  setWaypointVisible: (name, visible) => callBridge("setWaypointVisible", { name, visible }),
+  deleteWaypoint: (name) => callBridge("deleteWaypoint", { name }),
+  addWaypoint: (name, color) => callBridge("addWaypoint", { name, color }),
+  getWaypoints: (cb) => callBridge("getWaypoints", {}, cb),
+  addFriend: (name) => callBridge("addFriend", { name }),
+  removeFriend: (name) => callBridge("removeFriend", { name }),
+  getFriends: (cb) => callBridge("getFriends", {}, cb),
+};
+
+const MODULES = {
+  visuals: [
+    { key: "fullBright",        label: "Full Bright",        desc: "Максимальная яркость: убирает темноту в пещерах и ночью",               on: true,  settings: [{ type: "slider", label: "Brightness", min: 0, max: 100, value: 100, unit: "%" }] },
+    { key: "customFov",         label: "Custom FOV",         desc: "Кастомный угол обзора: настройка FOV от 30° до 160°",                    on: false, settings: [{ type: "slider", label: "FOV", min: 30, max: 160, value: 90, unit: "°" }] },
+    { key: "motionBlur",        label: "Motion Blur",        desc: "Размытие в движении: глубинное кинематографичное размытие мира",         on: false, settings: [{ type: "slider", label: "Strength", min: 10, max: 99, value: 50, unit: "%" }] },
+    { key: "chinaHat",          label: "China Hat",          desc: "Китайская шляпа: стильная коническая шляпа над головой игрока",           on: true,  settings: [{ type: "slider", label: "Scale", min: 50, max: 200, value: 100, unit: "%" }, { type: "swatches", label: "Color" }] },
+    { key: "playerTrail",       label: "Player Trail",       desc: "Шлейф частиц: неоновый световой след за игроком при беге и полетах",     on: true,  settings: [] },
+    { key: "jumpCircles",       label: "Jump Circles",       desc: "Круги от прыжков: расходящиеся огненные кольца при приземлении",        on: true,  settings: [{ type: "slider", label: "Radius", min: 1, max: 4, value: 2, unit: "m" }] },
+    { key: "noHurtCam",         label: "No Hurt Cam",        desc: "Отключение тряски камеры при получении урона",                          on: true,  settings: [] },
+    { key: "aspectRatio",       label: "Aspect Ratio",       desc: "Кастомное соотношение сторон экрана (4:3, 16:9, 21:9, 1:1)",            on: false, settings: [{ type: "select", label: "Ratio", options: ["4:3","16:9","21:9","5:4","1:1"] }] },
+    { key: "crosshair",         label: "Crosshair",          desc: "Кастомный прицел: сменяет форму и цвет перекрестия",                     on: false, settings: [{ type: "swatches", label: "Color" }, { type: "select", label: "Style", options: ["Cross","Dot","Brackets","Diamond"] }] },
+    { key: "customHand",        label: "Custom Hand",        desc: "Кастомные руки: настройка масштаба и положения предметов от 1-го лица",  on: false, settings: [{ type: "slider", label: "Scale", min: 50, max: 200, value: 100, unit: "%" }] },
+    { key: "hitColor",          label: "Hit Color",          desc: "Цвет урона: кастомный оттенок вспышки сущностей при атаке",              on: true,  settings: [{ type: "swatches", label: "Damage Tint" }] },
+    { key: "particles",         label: "Hit Particles",      desc: "Партиклы ударов: усиленные искры и критические частицы при ударе",      on: true,  settings: [{ type: "slider", label: "Density", min: 1, max: 5, value: 2, unit: "x" }] },
+    { key: "hitSounds",         label: "Hit Sounds",         desc: "Звуки ударов: звуковое подтверждение попадания (Bell, Pop, Ding, Osu)", on: true,  settings: [{ type: "select", label: "Style", options: ["Bell","Pop","Ding","Osu"] }] },
+    { key: "renderTweaks",      label: "Render Tweaks",      desc: "Твики рендера: оптимизация и отключение тумана мира",                    on: true,  settings: [{ type: "toggle", label: "Disable fog", value: true }] },
+    { key: "blockOverlay",      label: "Block Overlay",      desc: "Светящаяся неоновая обводка выделенных блоков",                          on: true,  settings: [{ type: "swatches", label: "Color" }] },
+    { key: "comboCounter",      label: "Combo Counter",      desc: "Счетчик комбо-ударов: показывает серию ударов на экране",                on: true,  settings: [] },
+  ],
+  hud: [
+    { key: "dynamicIsland",     label: "Dynamic Island",     desc: "Динамический остров: капсула с ником, FPS, пингом и музыкой",            on: true,  settings: [] },
+    { key: "targetHud",         label: "Target HUD",         desc: "Target HUD: карточка цели со здоровьем, головой и дистанцией",          on: true,  settings: [] },
+    { key: "playerInfo",        label: "Player Info Card",   desc: "Инфо-панель игрока: карточка с головой, здоровьем и бронёй",            on: true,  settings: [] },
+    { key: "cooldowns",         label: "Cooldowns Card",     desc: "Кулдауны: отображение таймеров перезарядки предметов",                  on: true,  settings: [] },
+    { key: "potions",           label: "Potions Card",       desc: "Эффекты зелий: список активных зелий и оставшееся время",               on: true,  settings: [] },
+    { key: "fpsDisplay",        label: "FPS Display",        desc: "Счётчик FPS: текущая частота кадров в секунду",                          on: true,  settings: [] },
+    { key: "cpsDisplay",        label: "CPS Display",        desc: "Счётчик CPS: количество кликов в секунду (ЛКМ / ПКМ)",                   on: true,  settings: [] },
+    { key: "pingDisplay",       label: "Ping Display",       desc: "Пинг: задержка до сервера в миллисекундах",                              on: true,  settings: [] },
+    { key: "coords",            label: "Coordinates",        desc: "Координаты: текущая позиция XYZ и биом игрока",                          on: true,  settings: [] },
+    { key: "speedometer",       label: "Speedometer",        desc: "Спидометр: скорость перемещения игрока (блоков/сек)",                   on: false, settings: [] },
+    { key: "armorStatus",       label: "Armor Status",       desc: "Статус брони: прочность и иконки надетой экипировки",                   on: true,  settings: [] },
+    { key: "keystrokes",        label: "Keystrokes",         desc: "Кейстроки: нажатия клавиш WASD, пробела и мыши на экране",              on: true,  settings: [] },
+  ],
+  utilities: [
+    { key: "guiScaleMod",       label: "GUI Scale",          desc: "Масштаб интерфейса: плавное изменение размера WebGUI меню",             on: true,  settings: [{ type: "slider", label: "Scale", min: 70, max: 160, value: 100, unit: "%" }] },
+    { key: "autoSprint",        label: "Auto Sprint",        desc: "Авто-спринт: автоматический постоянный бег вперед без зажатия Ctrl",     on: true,  settings: [] },
+    { key: "friendProtection",  label: "Friend Protection",  desc: "Защита друзей: блокирует случайные удары по друзьям из списка",         on: false, settings: [] },
+    { key: "timeChanger",       label: "Time Changer",       desc: "Смена времени: визуальное время суток в мире (день, закат, ночь)",      on: false, settings: [{ type: "slider", label: "Time", min: 0, max: 24000, value: 6000, unit: "t" }] },
+  ],
+};
+
+let currentTab = "visuals";
+let currentPanel = "settings";
+let waypoints = [];
+let friends = [];
+let onlineFakeSet = new Set(); // TODO: replace with window.mcBridge.getOnlinePlayers()
+let waypointCounter = 1;
+
+const el = (sel) => document.querySelector(sel);
+const moduleGrid = el("#moduleGrid");
+const tooltip = el("#tooltip");
+const tabHighlight = el("#tabHighlight");
+
+// ---------------------- crossfade helper ----------------------
+// Fades an element out, runs `updateFn` while it's invisible, then fades
+// it back in. Used for both sidebar-panel switches (CSS handles that one
+// via the .active class) and in-place content swaps like the module grid,
+// so nothing ever pops or resizes the window mid-switch.
+function crossfade(container, updateFn, duration = 140) {
+  container.style.transition = `opacity ${duration}ms ease, transform ${duration}ms ease`;
+  container.style.opacity = "0";
+  container.style.transform = "translateY(4px)";
+  window.setTimeout(() => {
+    updateFn();
+    // force reflow so the next style change actually transitions
+    void container.offsetHeight;
+    container.style.opacity = "1";
+    container.style.transform = "translateY(0)";
+  }, duration);
+}
+
+// ---------------------- sidebar / panel switching ----------------------
+document.querySelectorAll(".sidebar-icon").forEach((icon) => {
+  icon.addEventListener("click", () => {
+    if (icon.dataset.panel === currentPanel) return;
+    document.querySelectorAll(".sidebar-icon").forEach((i) => i.classList.remove("active"));
+    icon.classList.add("active");
+    currentPanel = icon.dataset.panel;
+    // panels crossfade purely via the .panel / .panel.active CSS transition
+    document.querySelectorAll(".panel").forEach((p) => {
+      p.classList.toggle("active", p.id === "panel-" + currentPanel);
+    });
+  });
+});
+
+// ---------------------- tabs ----------------------
+document.querySelectorAll(".tab-btn").forEach((btn, index) => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.tab === currentTab) return;
+    document.querySelectorAll(".tabs-track .tab-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentTab = btn.dataset.tab;
+    tabHighlight.style.transform = `translateX(${index * 100}%)`;
+    crossfade(moduleGrid, renderModules);
+  });
+});
+
+// ---------------------- module grid ----------------------
+function renderModules() {
+  moduleGrid.innerHTML = "";
+  const modules = MODULES[currentTab];
+
+  if (modules.length === 0) {
+    moduleGrid.classList.add("is-empty");
+    moduleGrid.innerHTML = `<div class="panel-empty">No modules in this tab yet</div>`;
+    return;
+  }
+  moduleGrid.classList.remove("is-empty");
+  moduleGrid.style.gridTemplateColumns = "1fr 1fr";
+
+  modules.forEach((mod) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `
+      <span class="row-label">${mod.label}</span>
+      <div class="toggle ${mod.on ? "on" : ""}"><div class="toggle-thumb"></div></div>
+    `;
+
+    row.addEventListener("mouseenter", () => showTooltip(mod.desc || mod.label));
+    row.addEventListener("mouseleave", hideTooltip);
+
+    row.addEventListener("click", () => {
+      mod.on = !mod.on;
+      row.querySelector(".toggle").classList.toggle("on", mod.on);
+      mcBridge.setToggle(mod.key, mod.on);
+    });
+
+    row.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      openModulePopup(mod, e.clientX, e.clientY);
+    });
+
+    moduleGrid.appendChild(row);
+  });
+}
+
+function showTooltip(text) {
+  tooltip.textContent = text;
+  tooltip.classList.add("show");
+}
+function hideTooltip() {
+  tooltip.classList.remove("show");
+}
+
+// ---------------------- right-click module settings popup ----------------------
+const popupOverlay = el("#popupOverlay");
+const modulePopup = el("#modulePopup");
+
+function openModulePopup(mod, clientX, clientY) {
+  modulePopup.innerHTML = "";
+
+  const header = document.createElement("div");
+  header.className = "popup-header";
+  header.innerHTML = `<span class="popup-title">${mod.label}</span>
+    <div class="icon-btn" id="popupClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>`;
+  modulePopup.appendChild(header);
+  header.querySelector("#popupClose").addEventListener("click", closeModulePopup);
+
+  if (!mod.settings || mod.settings.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "popup-empty";
+    empty.textContent = "No additional settings for this module.";
+    modulePopup.appendChild(empty);
+  } else {
+    mod.settings.forEach((setting) => modulePopup.appendChild(buildSettingRow(mod, setting)));
+  }
+
+  popupOverlay.classList.add("show");
+
+  // position, clamped so it never renders off-screen
+  const scale = Number(document.documentElement.style.getPropertyValue("--gui-scale")) || 1;
+  modulePopup.style.transform = `scale(${scale})`;
+  modulePopup.style.transformOrigin = "top left";
+
+  const width = 210 * scale, estHeight = (60 + (mod.settings?.length || 1) * 46) * scale;
+  let x = clientX, y = clientY;
+  if (x + width > window.innerWidth) x = window.innerWidth - width - 10;
+  if (y + estHeight > window.innerHeight) y = window.innerHeight - estHeight - 10;
+  modulePopup.style.left = Math.max(10, x) + "px";
+  modulePopup.style.top = Math.max(10, y) + "px";
+}
+
+function closeModulePopup() {
+  popupOverlay.classList.remove("show");
+}
+popupOverlay.addEventListener("click", (e) => {
+  if (e.target === popupOverlay) closeModulePopup();
+});
+
+function buildSettingRow(mod, setting) {
+  const row = document.createElement("div");
+  row.className = "popup-row";
+
+  if (setting.type === "slider") {
+    row.innerHTML = `
+      <div class="popup-row-label"><span>${setting.label}</span><span id="val">${setting.value}${setting.unit}</span></div>
+      <input type="range" class="popup-slider" min="${setting.min}" max="${setting.max}" value="${setting.value}">
+    `;
+    row.querySelector("input").addEventListener("input", (e) => {
+      setting.value = Number(e.target.value);
+      row.querySelector("#val").textContent = setting.value + setting.unit;
+      if (mod.key === "guiScaleMod") {
+        const shell = document.querySelector(".app-shell");
+        if (shell) shell.style.transform = `scale(${setting.value / 100})`;
+      }
+      mcBridge.setModuleValue(mod.key, setting.label, setting.value);
+    });
+  } else if (setting.type === "swatches") {
+    row.innerHTML = `<div class="popup-row-label"><span>${setting.label}</span></div><div class="popup-swatches"></div>`;
+    const wrap = row.querySelector(".popup-swatches");
+    PALETTE.forEach((color, i) => {
+      const dot = document.createElement("div");
+      dot.className = "popup-swatch" + (i === 0 ? " selected" : "");
+      dot.style.background = color;
+      dot.addEventListener("click", () => {
+        wrap.querySelectorAll(".popup-swatch").forEach((d) => d.classList.remove("selected"));
+        dot.classList.add("selected");
+        mcBridge.setModuleColor(mod.key, color);
+      });
+      wrap.appendChild(dot);
+    });
+  } else if (setting.type === "toggle") {
+    row.innerHTML = `
+      <div class="popup-row-label" style="margin-bottom:0"><span>${setting.label}</span></div>
+    `;
+    const toggle = document.createElement("div");
+    toggle.className = "toggle" + (setting.value ? " on" : "");
+    toggle.style.marginTop = "6px";
+    toggle.innerHTML = `<div class="toggle-thumb"></div>`;
+    toggle.addEventListener("click", () => {
+      setting.value = !setting.value;
+      toggle.classList.toggle("on", setting.value);
+      mcBridge.setModuleValue(mod.key, setting.label, setting.value);
+    });
+    row.appendChild(toggle);
+  } else if (setting.type === "select") {
+    row.innerHTML = `<div class="popup-row-label"><span>${setting.label}</span></div>`;
+    const wrap = document.createElement("div");
+    wrap.className = "tabs-track";
+    wrap.style.marginBottom = "0";
+    setting.options.forEach((opt, i) => {
+      const optBtn = document.createElement("div");
+      optBtn.className = "tab-btn" + (i === 0 ? " active" : "");
+      optBtn.textContent = opt;
+      optBtn.addEventListener("click", () => {
+        wrap.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        optBtn.classList.add("active");
+        mcBridge.setModuleValue(mod.key, setting.label, opt);
+      });
+      wrap.appendChild(optBtn);
+    });
+    row.appendChild(wrap);
+  }
+
+  return row;
+}
+
+// ---------------------- waypoints panel ----------------------
+const waypointList = el("#waypointList");
+
+function renderWaypoints() {
+  waypointList.innerHTML = "";
+  if (waypoints.length === 0) {
+    waypointList.classList.add("is-empty");
+    waypointList.innerHTML = `<div class="panel-empty">No waypoints yet</div>`;
+    return;
+  }
+  waypointList.classList.remove("is-empty");
+  waypoints.forEach((wp) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;overflow:hidden">
+        <div class="color-dot" style="background:${wp.color || "#4a90e2"}"></div>
+        <div style="overflow:hidden">
+          <div class="row-label">${wp.name}</div>
+          <div class="row-sub">${Math.round(wp.x)}, ${Math.round(wp.y)}, ${Math.round(wp.z)}</div>
+        </div>
+      </div>
+      <div class="row-right">
+        <div class="toggle ${wp.visible ? "on" : ""}"><div class="toggle-thumb"></div></div>
+        <div class="icon-btn" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+      </div>
+    `;
+    row.querySelector(".toggle").addEventListener("click", (e) => {
+      e.stopPropagation();
+      wp.visible = !wp.visible;
+      e.currentTarget.classList.toggle("on", wp.visible);
+      mcBridge.setWaypointVisible(wp.name, wp.visible);
+    });
+    row.querySelector(".icon-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      crossfade(waypointList, () => {
+        waypoints = waypoints.filter((w) => w.name !== wp.name);
+        renderWaypoints();
+      });
+      mcBridge.deleteWaypoint(wp.name);
+    });
+    waypointList.appendChild(row);
+  });
+}
+
+el("#addWaypointBtn").addEventListener("click", () => {
+  const name = "Waypoint " + (waypoints.length + 1);
+  const color = PALETTE[waypoints.length % PALETTE.length];
+  mcBridge.addWaypoint(name, color);
+  setTimeout(() => {
+    mcBridge.getWaypoints((res) => {
+      if (res) {
+        try {
+          waypoints = JSON.parse(res);
+          renderWaypoints();
+        } catch(e) {}
+      }
+    });
+  }, 60);
+});
+
+// ---------------------- friends panel ----------------------
+const friendList = el("#friendList");
+const friendInput = el("#friendInput");
+
+function renderFriends() {
+  friendList.innerHTML = "";
+  if (friends.length === 0) {
+    friendList.classList.add("is-empty");
+    friendList.innerHTML = `<div class="panel-empty">No friends added yet</div>`;
+    return;
+  }
+  friendList.classList.remove("is-empty");
+  friends.forEach((name) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="status-dot online"></div>
+        <span class="row-label">${name}</span>
+      </div>
+      <div class="icon-btn" title="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+    `;
+    row.querySelector(".icon-btn").addEventListener("click", () => {
+      crossfade(friendList, () => {
+        friends = friends.filter((f) => f !== name);
+        renderFriends();
+      });
+      mcBridge.removeFriend(name);
+    });
+    friendList.appendChild(row);
+  });
+}
+
+function addFriend() {
+  const name = friendInput.value.trim();
+  if (!name || friends.includes(name)) return;
+  crossfade(friendList, () => {
+    friends.push(name);
+    renderFriends();
+  });
+  friendInput.value = "";
+  mcBridge.addFriend(name);
+}
+el("#addFriendBtn").addEventListener("click", addFriend);
+friendInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addFriend(); });
+
+// Global Backspace / Delete fix for CEF OSR
+window.addEventListener("keydown", (e) => {
+  const active = document.activeElement;
+  if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+    if (e.key === "Backspace" || e.keyCode === 8) {
+      const start = active.selectionStart;
+      const end = active.selectionEnd;
+      if (start !== null && end !== null) {
+        if (start === end && start > 0) {
+          active.value = active.value.slice(0, start - 1) + active.value.slice(end);
+          active.setSelectionRange(start - 1, start - 1);
+          e.preventDefault();
+        } else if (start !== end) {
+          active.value = active.value.slice(0, start) + active.value.slice(end);
+          active.setSelectionRange(start, start);
+          e.preventDefault();
+        }
+      }
+    } else if (e.key === "Delete" || e.keyCode === 46) {
+      const start = active.selectionStart;
+      const end = active.selectionEnd;
+      if (start !== null && end !== null) {
+        if (start === end && start < active.value.length) {
+          active.value = active.value.slice(0, start) + active.value.slice(start + 1);
+          active.setSelectionRange(start, start);
+          e.preventDefault();
+        } else if (start !== end) {
+          active.value = active.value.slice(0, start) + active.value.slice(end);
+          active.setSelectionRange(start, start);
+          e.preventDefault();
+        }
+      }
+    }
+  }
+});
+
+// ---------------------- header controls ----------------------
+function handleClose(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  mcBridge.closeGui();
+}
+el("#closeBtn").addEventListener("click", handleClose);
+el("#closeBtn").addEventListener("mousedown", handleClose);
+
+el("#themeBtn").addEventListener("click", (e) => {
+  e.currentTarget.classList.toggle("dark-off");
+});
+
+// ---------------------- init & focus ----------------------
+function triggerFadeIn() {
+  const shell = el(".app-shell");
+  if (shell) {
+    shell.style.animation = "none";
+    shell.offsetHeight; // trigger reflow
+    shell.style.animation = "guiFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards";
+  }
+}
+
+function applyGuiScale(val) {
+  const baseScale = 1.25;
+  const multiplier = Number(val) / 100;
+  const finalScale = baseScale * multiplier;
+  document.documentElement.style.setProperty("--gui-scale", finalScale);
+  const shell = el(".app-shell");
+  if (shell) {
+    shell.style.transform = `scale(${finalScale})`;
+  }
+}
+
+window.applyState = function(cfg, wps, frs) {
+  if (cfg) {
+    try {
+      if (cfg.hasOwnProperty("guiScale")) {
+        applyGuiScale(cfg.guiScale);
+        const scaleMod = MODULES.utilities.find((m) => m.key === "guiScaleMod");
+        if (scaleMod && scaleMod.settings && scaleMod.settings[0]) {
+          scaleMod.settings[0].value = Number(cfg.guiScale);
+        }
+      }
+      ["visuals", "hud", "utilities"].forEach((cat) => {
+        if (MODULES[cat]) {
+          MODULES[cat].forEach((m) => {
+            if (cfg.hasOwnProperty(m.key)) {
+              m.on = !!cfg[m.key];
+            }
+            if (m.settings) {
+              m.settings.forEach((s) => {
+                const settingKey = m.key + "_" + s.label;
+                if (cfg.hasOwnProperty(settingKey)) {
+                  s.value = cfg[settingKey];
+                }
+                if (s.label === "FOV" && cfg.hasOwnProperty("fovValue")) {
+                  s.value = Number(cfg.fovValue);
+                }
+                if (s.label === "Time" && cfg.hasOwnProperty("timeValue")) {
+                  s.value = Number(cfg.timeValue);
+                }
+                if (s.label === "Brightness" && cfg.hasOwnProperty("brightnessValue")) {
+                  s.value = Number(cfg.brightnessValue);
+                }
+                if (s.label === "Strength" && m.key === "motionBlur" && cfg.hasOwnProperty("motionBlur_Strength")) {
+                  s.value = Math.round(Number(cfg.motionBlur_Strength) * 100);
+                }
+                if (s.label === "Scale" && m.key === "chinaHat" && cfg.hasOwnProperty("chinaHatScale")) {
+                  s.value = Number(cfg.chinaHatScale);
+                }
+              });
+            }
+          });
+        }
+      });
+      renderModules();
+    } catch (e) {
+      console.error("Failed to parse config from bridge:", e);
+    }
+  }
+  if (wps) {
+    waypoints = wps;
+    renderWaypoints();
+  }
+  if (frs) {
+    friends = frs;
+    renderFriends();
+  }
+};
+
+function syncConfig() {
+  document.getElementById("mainWindow").style.display = "";
+  document.getElementById("sidebar").style.display = "";
+  
+  if (window.cefQuery) {
+    mcBridge.getConfig((res) => {
+      if (res) {
+        try {
+          window.applyState(JSON.parse(res), null, null);
+        } catch(e) {}
+      }
+    });
+    mcBridge.getFriends((res) => {
+      if (res) {
+        try {
+          window.applyState(null, null, JSON.parse(res));
+        } catch(e) {}
+      }
+    });
+    mcBridge.getWaypoints((res) => {
+      if (res) {
+        try {
+          window.applyState(null, JSON.parse(res), null);
+        } catch(e) {}
+      }
+    });
+  } else {
+    // If cefQuery is absent, send a ping to Java via fallback to request a state push.
+    const img = new Image();
+    img.src = "mc://requeststate";
+  }
+}
+
+window.addEventListener("focus", () => {
+  triggerFadeIn();
+  syncConfig();
+});
+syncConfig();
+renderModules();
+renderWaypoints();
+renderFriends();
+</script>
+</body>
+</html>

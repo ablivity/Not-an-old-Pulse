@@ -1,0 +1,246 @@
+plugins {
+    id 'fabric-loom' version '1.17-SNAPSHOT'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+loom {
+    splitEnvironmentSourceSets()
+
+    mods {
+        "not_an_old_pulse" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+}
+
+fabricApi {
+    configureDataGeneration {
+        client = true
+    }
+}
+
+repositories {
+    maven { url = "https://maven.fabricmc.net/" }
+    maven { url = "https://jitpack.io" }
+    maven { url = "https://repo.maven.apache.org/maven2/" }
+    flatDir {
+        dirs 'libs'
+    }
+    mavenCentral()
+    maven { url = "https://maven.dimaskama.net/releases" }
+    exclusiveContent {
+        forRepository {
+            maven { url = "https://api.modrinth.com/maven" }
+        }
+        filter { includeGroup "maven.modrinth" }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // MCEF Modern - браузер в Minecraft
+    modImplementation "net.dimaskama:mcef-modern:${project.mcef_modern_version}"
+    implementation "me.friwi:jcef-api:jcef-cffac27+cef-143.0.14+gdd46a37+chromium-143.0.7499.193"
+    implementation "me.friwi:jcefmaven:143.0.14"
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "loader_version", project.loader_version
+    filteringCharset "UTF-8"
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version,
+                "minecraft_version": project.minecraft_version,
+                "loader_version": project.loader_version
+    }
+}
+
+def targetJavaVersion = 21
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+        it.options.release.set(targetJavaVersion)
+    }
+}
+
+java {
+    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
+    if (JavaVersion.current() < javaVersion) {
+        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+    withSourcesJar()
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}
+
+publishing {
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+    repositories {
+    }
+}
+task findMethods {
+    doLast {
+        def f = file('.gradle/loom-cache/1.21.11/net.fabricmc.yarn.1_21_11.1.21.11+build.3-v2/minecraft-project-@-merged-named.jar')
+        if (f.exists()) {
+            java.util.zip.ZipFile zip = new java.util.zip.ZipFile(f)
+            zip.entries().findAll { it.name.endsWith('DrawContext.class') || it.name.endsWith('PlayerInventory.class') || it.name.endsWith('RenderTickCounter.class') }.each { entry ->
+                println entry.name
+                def reader = new org.objectweb.asm.ClassReader(zip.getInputStream(entry))
+                def node = new org.objectweb.asm.tree.ClassNode()
+                reader.accept(node, 0)
+                node.methods.each { m ->
+                    println "  " + m.name + " " + m.desc
+                }
+                node.fields.each { fl ->
+                    println "  F " + fl.name + " " + fl.desc + " acc: " + fl.access
+                }
+            }
+        } else {
+            println "File not found: " + f
+        }
+    }
+}
+
+task findKeyBinding {
+    doLast {
+        def f = file('.gradle/loom-cache/1.21.11/net.fabricmc.yarn.1_21_11.1.21.11+build.3-v2/minecraft-project-@-merged-named.jar')
+        if (f.exists()) {
+            java.util.zip.ZipFile zip = new java.util.zip.ZipFile(f)
+            zip.entries().findAll { it.name.endsWith('KeyBinding.class') }.each { entry ->
+                println entry.name
+                def reader = new org.objectweb.asm.ClassReader(zip.getInputStream(entry))
+                def node = new org.objectweb.asm.tree.ClassNode()
+                reader.accept(node, 0)
+                node.methods.each { m ->
+                    println "  " + m.name + " " + m.desc
+                }
+            }
+        }
+    }
+}
+
+task findKeyBinding2 {
+    doLast {
+        def f = file('.gradle/loom-cache/1.21.11/net.fabricmc.yarn.1_21_11.1.21.11+build.3-v2/minecraft-project-@-merged-named.jar')
+        if (f.exists()) {
+            java.util.zip.ZipFile zip = new java.util.zip.ZipFile(f)
+            zip.entries().findAll { it.name == 'net/minecraft/client/option/KeyBinding.class' }.each { entry ->
+                println entry.name
+                def reader = new org.objectweb.asm.ClassReader(zip.getInputStream(entry))
+                def node = new org.objectweb.asm.tree.ClassNode()
+                reader.accept(node, 0)
+                node.methods.each { m ->
+                    println "  " + m.name + " " + m.desc
+                }
+            }
+        }
+    }
+}
+
+task findKeyBindingConstructors {
+    doLast {
+        def f = file('.gradle/loom-cache/1.21.11/net.fabricmc.yarn.1_21_11.1.21.11+build.3-v2/minecraft-project-@-merged-named.jar')
+        if (f.exists()) {
+            java.util.zip.ZipFile zip = new java.util.zip.ZipFile(f)
+            zip.entries().findAll { it.name == 'net/minecraft/client/option/KeyBinding.class' }.each { entry ->
+                println entry.name
+                def reader = new org.objectweb.asm.ClassReader(zip.getInputStream(entry))
+                def node = new org.objectweb.asm.tree.ClassNode()
+                reader.accept(node, 0)
+                node.methods.each { m ->
+                    if (m.name == '<init>') {
+                        println "  Constructor: " + m.desc
+                    }
+                }
+            }
+        }
+    }
+}
+
+task findKeyBinding3 {
+    doLast {
+        def f = file('.gradle/loom-cache/1.21.11/net.fabricmc.yarn.1_21_11.1.21.11+build.3-v2/minecraft-project-@-merged-named.jar')
+        if (f.exists()) {
+            java.util.zip.ZipFile zip = new java.util.zip.ZipFile(f)
+            zip.entries().findAll { it.name.endsWith('KeyBinding.class') }.each { entry ->
+                println entry.name
+                def reader = new org.objectweb.asm.ClassReader(zip.getInputStream(entry))
+                def node = new org.objectweb.asm.tree.ClassNode()
+                reader.accept(node, 0)
+                node.methods.each { m ->
+                    if (m.name == '<init>') {
+                        println "  Constructor: " + m.desc
+                    }
+                }
+            }
+        }
+    }
+}
+
+task listPackages {
+    doLast {
+        def f = file('.gradle/loom-cache/1.21.11/net.fabricmc.yarn.1_21_11.1.21.11+build.3-v2/minecraft-project-@-merged-named.jar')
+        if (f.exists()) {
+            java.util.zip.ZipFile zip = new java.util.zip.ZipFile(f)
+            zip.entries().findAll { it.name.contains('KeyBinding') }.each { entry ->
+                println entry.name
+            }
+        }
+    }
+}
+
+task listPackages2 {
+    doLast {
+        def f = file('.gradle/loom-cache/1.21.11/net.fabricmc.yarn.1_21_11.1.21.11+build.3-v2/minecraft-project-@-merged-named.jar')
+        if (f.exists()) {
+            java.util.zip.ZipFile zip = new java.util.zip.ZipFile(f)
+            zip.entries().findAll { it.name.toLowerCase().contains('keybind') }.each { entry ->
+                println entry.name
+            }
+        }
+    }
+}
+
+task checkSimpleOption {
+    doLast {
+        def f = file('.gradle/loom-cache/1.21.11/net.fabricmc.yarn.1_21_11.1.21.11+build.3-v2/minecraft-project-@-merged-named.jar')
+        if (f.exists()) {
+            java.util.zip.ZipFile zip = new java.util.zip.ZipFile(f)
+            zip.entries().findAll { it.name.contains('SimpleOption') }.each { entry ->
+                println entry.name
+                if (entry.name.endsWith('SimpleOption.class')) {
+                    def reader = new org.objectweb.asm.ClassReader(zip.getInputStream(entry))
+                    def node = new org.objectweb.asm.tree.ClassNode()
+                    reader.accept(node, 0)
+                    node.methods.each { m ->
+                        println "  " + m.name + " " + m.desc
+                    }
+                }
+            }
+        }
+    }
+}
+

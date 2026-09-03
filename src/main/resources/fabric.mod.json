@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "not_an_old_pulse",
+  "version": "${version}",
+  "name": "not_an_old_pulse",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "GPL-3.0",
+  "icon": "assets/not_an_old_pulse/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-datagen": [
+      "ablivity.dev.not_an_old_pulse.client.Not_an_old_pulseDataGenerator"
+    ],
+    "client": [
+      "ablivity.dev.not_an_old_pulse.client.Not_an_old_pulseClient"
+    ],
+    "main": [
+      "ablivity.dev.not_an_old_pulse.Not_an_old_pulse"
+    ]
+  },
+  "mixins": [
+    "not_an_old_pulse.client.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "targets": {
+    "output": {}
+  },
+  "passes": [
+    {
+      "vertex_shader": "minecraft:post/blit",
+      "fragment_shader": "not_an_old_pulse:post/motion_blur",
+      "inputs": [
+        {
+          "sampler_name": "Current",
+          "target": "minecraft:main",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Depth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true
+        }
+      ],
+      "output": "output",
+      "uniforms": {
+        "MotionBlurUniforms": [
+          {
+            "name": "currentProjectionInverse",
+            "type": "matrix4x4",
+            "value": [
+              1.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, 0.0,
+              0.0, 0.0, 0.0, 1.0
+            ]
+          },
+          {
+            "name": "previousProjection",
+            "type": "matrix4x4",
+            "value": [
+              1.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, 0.0,
+              0.0, 0.0, 0.0, 1.0
+            ]
+          },
+          {
+            "name": "currentModelViewInverse",
+            "type": "matrix4x4",
+            "value": [
+              1.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, 0.0,
+              0.0, 0.0, 0.0, 1.0
+            ]
+          },
+          {
+            "name": "previousModelView",
+            "type": "matrix4x4",
+            "value": [
+              1.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, 0.0,
+              0.0, 0.0, 0.0, 1.0
+            ]
+          },
+          {
+            "name": "cameraDeltaAndFrameTime",
+            "type": "vec4",
+            "value": [0.0, 0.0, 0.0, 0.0166667]
+          },
+          {
+            "name": "blurParams",
+            "type": "vec4",
+            "value": [0.5, 3.0, 0.003, 0.0]
+          }
+        ]
+      }
+    },
+    {
+      "vertex_shader": "minecraft:post/blit",
+      "fragment_shader": "minecraft:post/blit",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "output"
+        }
+      ],
+      "output": "minecraft:main",
+      "uniforms": {
+        "BlitConfig": [
+          {
+            "name": "ColorModulate",
+            "type": "vec4",
+            "value": [1.0, 1.0, 1.0, 1.0]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+    "required":  true,
+    "minVersion":  "0.8",
+    "package":  "ablivity.dev.not_an_old_pulse.mixin",
+    "compatibilityLevel":  "JAVA_21",
+    "mixins":  [
+                   "DrawContextAccessor",
+                   "FullBrightMixin",
+                   "LivingEntityRendererAccessor",
+                   "PlayerEntityRendererMixin",
+                   "GameRendererMixin",
+                   "ClientWorldPropertiesMixin",
+                   "BossBarHudAccessor",
+                   "ClientPlayerInteractionManagerMixin",
+                   "HeldItemRendererMixin",
+                   "MotionBlurGameRendererMixin",
+                   "MotionBlurPostEffectPassAccessor",
+                   "MotionBlurPostEffectProcessorAccessor",
+                   "TitleScreenMixin",
+                   "LogoDrawerMixin",
+                   "GameMenuScreenMixin",
+                   "WorldRendererMixin",
+                   "SimpleOptionMixin",
+                   "InGameHudMixin",
+                   "ClientPlayerEntityMixin"
+               ],
+    "injectors":  {
+                      "defaultRequire":  1
+                  },
+    "overwrites":  {
+                       "requireAnnotations":  true
+                   }
+}
+
